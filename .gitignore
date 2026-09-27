@@ -1,0 +1,10 @@
+node_modules/
+dist/
+
+# OAuth secrets and tokens - never commit these
+credentials.json
+.gtm-mcp/
+*.token.json
+.env
+
+.DS_Store
