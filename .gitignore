@@ -3,8 +3,12 @@ dist/
 
 # OAuth secrets and tokens - never commit these
 credentials.json
+client_secret_*.json
 .gtm-mcp/
+token.json
 *.token.json
 .env
+.env.*
+!.env.example
 
 .DS_Store

@@ -22,6 +22,17 @@ reverting entities, and are annotated so MCP clients can distinguish reads from 
 Writes always require `workspace`. Reads may omit it only when the container has a uniquely
 identifiable Default Workspace.
 
+## What's new in v0.2
+
+- Safe partial updates with GTM fingerprint conflict protection.
+- Explicit workspace selection for every create, update, delete, revert, sync, and preview call.
+- Default Workspace fallback for read-only calls.
+- Complete pagination for account, container, workspace, tag, trigger, and variable listings.
+- Workspace status, sync, conflict inspection, and quick preview tools.
+- Secure local OAuth callback with state validation, a five-minute timeout, and restrictive token
+  file permissions.
+- Structured MCP responses, mutation annotations, tests, and CI.
+
 ## Requirements
 
 - Node.js 22 or newer (required by the current Google API libraries)
@@ -47,6 +58,8 @@ npm ci
 npm run check
 ```
 
+`npm run check` builds `dist/` and runs the test suite. Run it again after pulling updates.
+
 ## 3. Sign in to Google
 
 ```bash
@@ -62,10 +75,18 @@ you authenticated with an older release, run `npm run auth` again to grant the n
 
 ## 4. Connect an MCP client
 
+Codex CLI or the Codex IDE extension:
+
+```bash
+codex mcp add gtm -- node "/absolute/path/to/gtm-mcp-server/dist/index.js"
+codex mcp list
+```
+
 Claude Code:
 
 ```bash
 claude mcp add gtm -- node "/absolute/path/to/gtm-mcp-server/dist/index.js"
+claude mcp list
 ```
 
 Claude Desktop (`claude_desktop_config.json`):
@@ -81,7 +102,22 @@ Claude Desktop (`claude_desktop_config.json`):
 }
 ```
 
-Example workflow:
+Restart the MCP client after changing its configuration. The server communicates over stdio, so
+you do not need to run `npm start` separately when the client launches `dist/index.js`.
+
+## Workspace behavior
+
+- Read-only tools may omit `workspace`; the server then resolves the container's Default
+  Workspace.
+- Mutating tools always require a workspace name or ID. You may explicitly pass `Default
+  Workspace`, but a dedicated workspace is safer for automation.
+- Duplicate account, container, or workspace names are rejected as ambiguous. Use the numeric ID
+  returned by the corresponding list tool.
+- The server can create and edit workspace drafts, but it cannot publish a container.
+
+## Example workflows
+
+Create a dedicated workspace and a GA4 event tag:
 
 1. “List my GTM accounts and containers.”
 2. “Create a workspace named `MCP - purchase tracking` in container `GTM-ABC123`.”
@@ -89,32 +125,25 @@ Example workflow:
 4. “Show workspace status and run a quick preview.”
 5. Review and publish manually in the GTM UI.
 
+Create a demo Meta/Facebook Pixel tag without publishing:
+
+> In container `GTM-ABC123`, create a Custom HTML tag named `Demo - Meta Pixel` in workspace
+> `MCP - demo`. Use a clearly fake pixel ID, attach the existing All Pages trigger, then show the
+> workspace status. Do not publish.
+
+Always replace demo IDs with your own values only after reviewing the generated workspace draft.
+
 ## Tools
 
-### Discovery and workspace safety
+| Area | Read-only tools | Mutating tools |
+|---|---|---|
+| Discovery | `gtm_list_accounts`, `gtm_list_containers`, `gtm_list_workspaces` | `gtm_create_workspace` |
+| Workspace | `gtm_workspace_status` | `gtm_sync_workspace`, `gtm_quick_preview_workspace` |
+| Tags | `gtm_list_tags`, `gtm_get_tag` | `gtm_create_tag`, `gtm_update_tag`, `gtm_delete_tag`, `gtm_revert_tag` |
+| Triggers | `gtm_list_triggers`, `gtm_get_trigger` | `gtm_create_trigger`, `gtm_update_trigger`, `gtm_delete_trigger`, `gtm_revert_trigger` |
+| Variables | `gtm_list_variables`, `gtm_get_variable` | `gtm_create_variable`, `gtm_update_variable`, `gtm_delete_variable`, `gtm_revert_variable` |
 
-- `gtm_list_accounts`
-- `gtm_list_containers`
-- `gtm_list_workspaces`
-- `gtm_create_workspace`
-- `gtm_workspace_status`
-- `gtm_sync_workspace`
-- `gtm_quick_preview_workspace`
-
-### Tags
-
-- `gtm_list_tags`, `gtm_get_tag`, `gtm_create_tag`, `gtm_update_tag`
-- `gtm_delete_tag`, `gtm_revert_tag`
-
-### Triggers
-
-- `gtm_list_triggers`, `gtm_get_trigger`, `gtm_create_trigger`, `gtm_update_trigger`
-- `gtm_delete_trigger`, `gtm_revert_trigger`
-
-### Variables
-
-- `gtm_list_variables`, `gtm_get_variable`, `gtm_create_variable`, `gtm_update_variable`
-- `gtm_delete_variable`, `gtm_revert_variable`
+`gtm_quick_preview_workspace` creates only a temporary preview. It does not publish the container.
 
 ## Environment variables
 
@@ -136,9 +165,38 @@ Unit tests cover mutation workspace requirements, GTM enum wire values, partial-
 and trigger condition validation. Live integration testing requires your own Google OAuth and
 GTM test container.
 
+## Troubleshooting
+
+### I can see only some accounts or containers
+
+The token belongs to the Google account selected during `npm run auth`. GTM returns only resources
+that account can access. To sign in with a different Google account while keeping a recoverable
+copy of the old token:
+
+```bash
+mv ~/.gtm-mcp/token.json ~/.gtm-mcp/token.backup.json
+npm run auth
+```
+
+For multiple identities, give each one a separate `GTM_MCP_CONFIG_DIR` and configure that variable
+for the corresponding MCP server entry.
+
+### OAuth sign-in fails
+
+- Confirm the downloaded credential is a **Desktop app** OAuth client, not a Web application.
+- Confirm the Tag Manager API is enabled in the same Google Cloud project.
+- If the OAuth consent screen is in testing mode, confirm the Google account is allowed to test it.
+- If an existing token predates v0.2, run `npm run auth` again to grant the preview scope.
+
+### A name is ambiguous
+
+Run the relevant list tool and retry with the returned numeric account, container, or workspace ID.
+The server intentionally refuses to guess when multiple resources have the same name.
+
 ## Security notes
 
-- Never commit OAuth credentials or tokens; both are covered by `.gitignore`.
+- Never commit OAuth credentials or tokens. Common credential, token, and environment filenames
+  are covered by `.gitignore`; keep custom secret paths outside the repository too.
 - Use a dedicated GTM workspace for automated changes.
 - Inspect `gtm_workspace_status` and run `gtm_quick_preview_workspace` before publishing.
 - Publishing remains a manual action in the GTM UI.
