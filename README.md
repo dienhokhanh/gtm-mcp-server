@@ -22,6 +22,14 @@ reverting entities, and are annotated so MCP clients can distinguish reads from 
 Writes always require `workspace`. Reads may omit it only when the container has a uniquely
 identifiable Default Workspace.
 
+## Architecture
+
+![gtm-mcp-server architecture: MCP clients connect over stdio, local OAuth credentials authorize Google Tag Manager workspace changes, and publishing remains a human action](docs/assets/gtm-mcp-architecture.jpg)
+
+The MCP client launches the local server over stdio. The server reads OAuth credentials and tokens
+from `~/.gtm-mcp`, calls the Google Tag Manager API, and limits automated changes to workspace
+drafts. A human reviews and publishes the container separately in GTM.
+
 ## What's new in v0.2
 
 - Safe partial updates with GTM fingerprint conflict protection.
