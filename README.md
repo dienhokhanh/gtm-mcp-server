@@ -210,6 +210,12 @@ The server intentionally refuses to guess when multiple resources have the same 
 - Publishing remains a manual action in the GTM UI.
 - Tokens are still local bearer credentials: only run this server on a trusted machine.
 
+## About PPC Blog Pro
+
+`gtm-mcp-server` is an open-source project from [PPC Blog Pro](https://ppcblogpro.com/), an
+independent resource for PPC professionals covering Google Ads, Meta Ads, AI-assisted campaign
+management, analytics, and conversion tracking.
+
 ## License
 
 MIT
